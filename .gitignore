@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime data (normally in ~/.newspaper, but never commit it if --data-dir points here)
+config.json
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.pid
+prints/
+.newspaper-ui.json

@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# PROVIDE: newspaper
+# REQUIRE: NETWORKING DAEMON
+# KEYWORD: shutdown
+#
+# Newspaper background service (feed fetching + scheduled printing).
+#
+# Enable it (install.sh does this for you):
+#   sysrc newspaper_enable=YES
+#
+# Optional settings in /etc/rc.conf (or `sysrc name=value`):
+#   newspaper_user="newspaper"                  account the service runs as (it is started as root, then drops to this)
+#   newspaper_group="newspaper"                 group that may read config.json; put UI users in it
+#   newspaper_dir="/usr/local/share/newspaper"  where service/ and ui/ are installed
+#   newspaper_data="/var/db/newspaper"          database, config.json, log, printed files
+#   newspaper_python="/usr/local/bin/python3"
+#   newspaper_flags=""                         e.g. "--host 0.0.0.0 --port 8765" (see README before exposing it)
+#
+# Usage: service newspaper start | stop | restart | status | token
+
+. /etc/rc.subr
+
+name="newspaper"
+rcvar="newspaper_enable"
+desc="Newspaper background service (feed fetching and scheduled printing)"
+
+load_rc_config $name
+
+: ${newspaper_enable:="NO"}
+: ${newspaper_user:="newspaper"}
+: ${newspaper_group:="newspaper"}
+: ${newspaper_dir:="/usr/local/share/newspaper"}
+: ${newspaper_data:="/var/db/newspaper"}
+: ${newspaper_python:="/usr/local/bin/python3"}
+: ${newspaper_flags:=""}
+
+pidfile="/var/run/${name}.pid"
+
+extra_commands="token"
+start_cmd="newspaper_start"
+stop_cmd="newspaper_stop"
+restart_cmd="newspaper_restart"
+status_cmd="newspaper_status"
+token_cmd="newspaper_token"
+
+# The Python program does the real work (daemonising, dropping privileges, waiting until it is up) and prints
+# the reason on failure, so `service newspaper start` tells you what is wrong instead of failing silently.
+newspaper_ctl()
+{
+	_script="${newspaper_dir}/service/newspaper_service.py"
+	if [ ! -r "${_script}" ]; then
+		echo "${name}: ${_script} not found. Run freebsd/install.sh, or set newspaper_dir." >&2
+		return 1
+	fi
+	"${newspaper_python}" "${_script}" "$1" \
+	    --user "${newspaper_user}" --group "${newspaper_group}" \
+	    --data-dir "${newspaper_data}" --pidfile "${pidfile}" ${newspaper_flags}
+}
+
+newspaper_start()   { newspaper_ctl start; }
+newspaper_stop()    { newspaper_ctl stop; }
+newspaper_restart() { newspaper_ctl restart; }
+newspaper_status()  { newspaper_ctl status; }
+newspaper_token()   { newspaper_ctl token; }
+
+run_rc_command "$1"
